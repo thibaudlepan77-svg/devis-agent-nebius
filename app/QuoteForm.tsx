@@ -51,7 +51,7 @@ export function QuoteForm() {
           placeholder="Exemple, nous recevons les demandes de devis par WhatsApp et les retapons à la main dans un tableau, nous aimerions automatiser la relance des clients qui ne répondent pas après trois jours."
           required
           minLength={20}
-          maxLength={2000}
+          maxLength={1000}
         />
         <select value={market} onChange={(event) => setMarket(event.target.value as Market)}>
           {Object.entries(MARKET_LABEL).map(([value, label]) => (

@@ -43,13 +43,13 @@ Rules:
 
 export async function generateQuote(request: QuoteRequest): Promise<QuoteResponse> {
   const client = getClient();
-  const model = process.env.NEBIUS_MODEL ?? "nvidia/nemotron-3-super";
+  const model = process.env.NEBIUS_MODEL ?? "nvidia/nemotron-3-super-120b-a12b";
   const currency = CURRENCY_BY_MARKET[request.market];
 
   const completion = await client.chat.completions.create({
     model,
     temperature: 0.4,
-    max_tokens: 900,
+    max_tokens: 1200,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       {

@@ -14,8 +14,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const identifier = clientIdentifier(req);
   const rateLimit = checkRateLimit(identifier);
   if (!rateLimit.allowed) {
+    const message =
+      rateLimit.reason === "global"
+        ? "Cette démonstration a atteint son plafond de requêtes pour aujourd'hui. Réessayez demain."
+        : "Vous avez atteint la limite de 3 essais par heure pour cette démonstration. Réessayez plus tard.";
     return NextResponse.json(
-      { error: "Trop de requêtes, réessayez dans un instant." },
+      { error: message },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)) } },
     );
   }

@@ -5,7 +5,7 @@ export const quoteRequestSchema = z.object({
     .string()
     .trim()
     .min(20, "Décrivez le besoin en au moins 20 caractères.")
-    .max(2000, "Décrivez le besoin en 2000 caractères maximum."),
+    .max(1000, "Décrivez le besoin en 1000 caractères maximum."),
   market: z.enum(["senegal", "france", "suisse"]).default("senegal"),
 });
 
