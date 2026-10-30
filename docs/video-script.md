@@ -8,6 +8,8 @@ Target length: 2:30 to 2:45, hard limit under 3:00 (judges are not required to w
 - Load the page once and wait until the fonts have rendered.
 - **Budget.** Every click on "Draft the quote" is a real generation. The demo allows 3 per hour per visitor and 40 per day in total, shared with the judges. Plan one live take for the main run (shots 3 to 6) and at most one retake. Do not test the button off camera.
 - **Numbers change on every run.** The searches, sources, hours and prices on screen come from the live web. Never read figures from this script: read what is on screen, or keep the narration general where marked.
+- **Pace.** Every narration block below is timed at about 150 words per minute. Read it at a calm, even pace; if a block runs long, let the shot run long rather than speed up the voice, and take the time back from the slack in shots 4, 5 and 7.
+- **Citation marks.** The quote no longer shows raw citation marks such as `【1†Loxala】` in its text. If they appear on the take, the deployment is out of date: report it before publishing that take.
 - A run takes about 15 to 20 seconds. Record it at real speed. In editing, the waiting segment may be sped up to 1.5x at most, with no cut inside the trace, so viewers can see every step appear.
 
 ## Shot 1, 0:00 to 0:20, the problem
@@ -22,7 +24,7 @@ Narration:
 Screen: hover the three pills above the headline, one after the other: "NVIDIA Nemotron 3 Super", "Nebius Token Factory", "Tavily web search".
 
 Narration:
-"Devis Agent does the research first. It runs NVIDIA Nemotron 3 Super on Nebius Token Factory, and gives it Tavily to search and read the live web. Then it prices the quote with arithmetic you can check."
+"Devis Agent researches first. It runs NVIDIA Nemotron 3 Super on Nebius Token Factory, gives it Tavily to search and read the live web, then prices with arithmetic you can check."
 
 ## Shot 3, 0:32 to 0:45, start a real run
 
@@ -49,12 +51,12 @@ Narration (adapt the topics to what appears, keep the structure):
 
 Screen:
 1. Scroll the right panel slowly from the title down to the three figures: one-time setup, monthly support, estimated effort. Pause.
-2. Point at the sentence under the figures: "Every amount is computed in code…".
+2. Point at the sentence under the figures: "Every line amount and total is computed in code…".
 3. Continue to the scope table. Point at one module and its small citation number.
 4. Click that citation number. The page jumps to the **Sources** list. Point at the source that carries the **"read in full"** badge.
 
 Narration:
-"A complete first draft: setup range, monthly support, effort. Each module has an hour range and a citation. Click one, and you land on the source it came from, including the page the agent read in full. The model never writes an amount. It proposes hours and a rate band, and the code does the multiplication."
+"A complete first draft: setup range, monthly support, effort. Each module has an hour range and a citation. Click one, and you land on the source it came from, including the page the agent read in full. The model never computes a price. It proposes hours and a rate band, and the code does the multiplication."
 
 ## Shot 6, 1:50 to 2:08, why you can trust it
 
@@ -64,7 +66,7 @@ Screen: scroll back up to the trace and point at its last three items.
 - The footer: number of Nemotron calls, Tavily searches, pages extracted, tokens, model id.
 
 Narration:
-"Then the code checks the draft. It validates the structure, and drops any citation that points to a page the agent never retrieved. It brings the rate inside a sane band for the market, and computes every total. The footer shows the whole run: the Nemotron calls on Token Factory, the Tavily searches, the page extracted."
+"The code checks the draft. It validates the structure, drops any citation to a page the agent never retrieved, keeps the rate inside a sane market band, and computes every total. The footer shows the run: Nemotron calls on Token Factory, Tavily searches, the page read."
 
 ## Shot 7, 2:08 to 2:22, ready to send
 
@@ -81,7 +83,7 @@ Narration:
 Screen: scroll back to the form. Hover the four market options in turn: France EUR, Senegal XOF, Switzerland CHF, United States USD. Then hover the two French example chips. Do not click "Draft the quote".
 
 Narration:
-"We built it for agencies like ours, working across France, Senegal and Switzerland, where rates, currencies and rules all differ. It quotes in four currencies, in English or French, in about fifteen seconds, and every figure can be traced back to a source."
+"We built it for agencies like ours, across France, Senegal and Switzerland, where rates, currencies and rules all differ. Four currencies, English or French, about fifteen seconds, and every price traceable to its sources."
 
 ## Shot 9, 2:36 to 2:45, close
 
@@ -95,6 +97,11 @@ Narration:
 - **A step shows as failed** (red marker): keep it. The agent carries on and the narration can say "a search timed out, the agent moves on without it". That is part of the design.
 - **"This demo allows 3 quotes per hour per visitor"**: wait for the hour to pass, or record from another network.
 - **The run takes longer than 30 seconds**: keep recording, the trace is still moving, and speed up that segment in editing within the 1.5x limit.
+
+## After the take, no extra generation
+
+- While the finished quote is still on screen, capture two screenshots of the live page at 1440 px wide and replace the files in `docs/screenshots/`: `desktop-quote.png` (viewport, trace on the left and the top of the quote on the right) and `desktop-quote-full.png` (full page). The current ones predate the citation-mark fix.
+- Do not click "Draft the quote" again for the screenshots.
 
 ## Upload
 
