@@ -1,85 +1,142 @@
 # Devis Agent
 
-Agentic quoting assistant for small web and automation agencies, built for the
-Nebius x NVIDIA Global AI Hackathon (Best Apps and Agents track).
+**From a one-line client request to a sourced, priced quote draft.** An agent that researches the market on the live web with Tavily, drafts the scope with NVIDIA Nemotron 3 Super on Nebius Token Factory, and prices it with arithmetic you can check.
 
-A prospect describes a business problem in one or two sentences, in French or
-English. The app sends that description to an NVIDIA Nemotron model served on
-Nebius Token Factory, which turns it into a structured, believable quote
-draft, modules, estimated hours, a setup price range, a monthly subscription,
-and the clarifying questions a human consultant would still ask before
-sending it to the client.
+Built for the Nebius x NVIDIA Global AI Hackathon, Best Apps and Agents track.
 
-This mirrors a real, recurring task at small agencies, including the one this
-project was built around, turning a vague automation request into a first
-pass quote in minutes instead of hours, while keeping a human reviewer firmly
-in the loop before anything goes out.
+- Live demo: **https://devis-agent-nebius.vercel.app** (no sign-up, three one-click examples)
+- Demo video and submission: on the Devpost project page
+- License: MIT
 
-## How it uses Nebius and NVIDIA
+![The agent trace on the left, the finished quote on the right](docs/screenshots/desktop-quote.png)
 
-- Inference runs through Nebius Token Factory's OpenAI-compatible endpoint
-  (`https://api.tokenfactory.us-central1.nebius.com/v1/`), configured in
-  `lib/nebius.ts`.
-- The model is an NVIDIA Nemotron open source model (`NEBIUS_MODEL`,
-  defaults to `nvidia/nemotron-3-super`), chosen for the reasoning needed to
-  turn an unstructured business need into a consistent module breakdown.
-- The server route (`app/api/quote/route.ts`) validates the model's JSON
-  output against a strict Zod schema before it ever reaches the browser, so a
-  malformed generation fails loudly instead of rendering garbage.
+## The problem
 
-## Stack
+Small web and automation agencies get the same kind of message every week: one or two sentences describing a business problem. *"Patients book by phone and no-shows are costing us chair time."* Before anyone can reply with a number, someone has to work out the modules, estimate the hours, check what freelancers charge in that country this year, find which API the build would sit on and what it costs, and remember which data protection rules apply. That research is the slow part, and it is exactly what a generic chatbot skips: it will happily invent a rate and a total.
 
-- Next.js 15 (App Router), TypeScript strict
-- Zod for both the inbound request and the model's structured output
-- A minimal in-memory rate limiter on the API route
-- Security headers set in `next.config.ts` (no inline frames, no sniffing,
-  restrictive `Permissions-Policy`)
+Devis Agent does that first pass the way a careful consultant would. It looks things up first, cites what it found, and never lets the language model do the arithmetic.
 
-## Run locally
+## What it does
+
+1. Describe the need in English or French, or click one of the three examples.
+2. Pick the client's market: France (EUR), Senegal (XOF), Switzerland (CHF) or the United States (USD).
+3. Watch the agent work in a live trace: Nemotron plans, Tavily searches, Nemotron picks the best source, Tavily Extract reads it, Nemotron drafts, the code checks and prices.
+4. Get a quote draft in about 15 to 20 seconds: modules with hour ranges, a one-time setup range, monthly support, the hourly rate and its rationale, tools and integrations, compliance points, assumptions, questions for the client, and numbered sources. Every claim that rests on the web carries a citation.
+5. Copy it as Markdown, download a `.md` file, or print it to a clean PDF.
+
+The quote is written in the language of the request, priced in the currency of the market, and clearly labelled as a draft for a consultant to review before it reaches a client.
+
+| Live trace while the agent works | Mobile |
+| --- | --- |
+| ![Trace streaming next to the quote skeleton](docs/screenshots/desktop-running.png) | ![The quote on a 390 px screen](docs/screenshots/mobile-quote.png) |
+
+## How it works
+
+```mermaid
+flowchart LR
+  B[Browser] -- "need + market" --> R["/api/quote<br/>Next.js route<br/>origin, size, Zod, rate limit"]
+  R --> L{{"Agent loop<br/>lib/agent.ts"}}
+  L <-- "chat + tool calls" --> N["NVIDIA Nemotron 3 Super<br/>Nebius Token Factory"]
+  L -- "web_search" --> S["Tavily Search<br/>country-boosted"]
+  L -- "read_page" --> E["Tavily Extract<br/>query-ranked passages"]
+  L -- "JSON draft" --> V["Zod validation<br/>citation check"]
+  V --> P["Deterministic pricing<br/>lib/pricing.ts"]
+  R -- "NDJSON stream: trace events, then the quote" --> B
+```
+
+**Research.** Nemotron receives two tools in the OpenAI function-calling format. `web_search` runs a Tavily search boosted toward the client's country. `read_page` reads one page that a search returned, through Tavily Extract. The prompt asks for one search per topic (market rates, the products or APIs the build relies on, the regulation that applies to the data involved), then one full read of the most useful source. The loop is bounded: at most 3 searches, 1 page read, 4 planning rounds and 25 seconds of research. `read_page` only unlocks after two searches have come back, and it only accepts a URL that a search actually returned, so the model cannot send the extractor anywhere it likes.
+
+**Drafting.** Nemotron writes the quote with `response_format: json_schema` in strict mode, from a schema generated by Zod (`z.toJSONSchema`). The response is parsed and validated again with the same Zod schema. If it fails, the validation errors go back to the model for one repair attempt. If that fails too, the user gets a clean error, never a half-rendered quote.
+
+**Checking and pricing.** The model only proposes hour ranges per module and an hourly rate band. The code does the rest: it keeps only citations that point to a source the agent retrieved, brings the rate back inside a wide per-market guard band (catching a rate in the wrong currency or a missing zero), multiplies hours by rate, and rounds totals per market. The model is told never to write an amount, and no line amount or total on screen comes from it.
+
+**Streaming.** The route streams newline-delimited JSON events. The browser upserts each trace step as it changes state (running, done, failed, skipped), then renders the quote when the final event arrives.
+
+## How it uses Nebius Token Factory and NVIDIA Nemotron
+
+- **Endpoint.** `https://api.tokenfactory.us-central1.nebius.com/v1/chat/completions`, called with `fetch` in [`lib/nebius.ts`](lib/nebius.ts). No SDK needed, the API is OpenAI-compatible.
+- **Model.** `nvidia/nemotron-3-super-120b-a12b`, overridable with `NEBIUS_MODEL`.
+- **Tool calling.** The agent loop relies on Nemotron's native function calling to decide what to search and which page to read. In our runs Nemotron issues one tool call per turn, so the loop is built around rounds rather than assuming parallel calls.
+- **Reasoning, visible.** Every call passes `chat_template_kwargs: { enable_thinking: true, low_effort: true }`. Nemotron keeps a short thought before each answer, which the trace shows under each planning and drafting step, without paying for a full reasoning pass.
+- **Structured output.** The draft uses `response_format` with a strict JSON schema, then Zod validation on top.
+- **Budgets.** 500 output tokens per research turn, 2,200 for the draft, 30 seconds per call. A typical quote takes 5 Nemotron calls and about 11,000 tokens.
+
+## How it uses Tavily
+
+Tavily is the agent's only window on the outside world, and it is called at runtime on every quote.
+
+- **Search** ([`lib/tavily.ts`](lib/tavily.ts)): `POST /search` with `country` set from the chosen market (`france`, `senegal`, `switzerland`, `united states`), `search_depth: basic`, 4 results, an 8 second timeout. Results are validated with Zod, deduplicated by URL across searches and numbered, so the model can cite `[3]` and the code can check that `[3]` exists.
+- **Extract**: `POST /extract` on the source Nemotron chose, with `query` set to what the model is looking for and `chunks_per_source: 3`, so the model receives the passages that answer its question (the rate table, the pricing grid) instead of a whole page. 10 second timeout. The source then carries a "read in full" badge in the quote.
+- **Untrusted by design.** Search results and page passages are passed to the model as data. The system prompt tells it never to follow instructions found inside them, and citations are verified in code.
+- **Graceful degradation.** A failed search or extract shows as a failed step in the trace and the agent carries on. Without a Tavily key the agent drafts from the model alone and the quote is flagged as not checked against current market data.
+
+## Security and cost controls
+
+- API keys live only in server-side environment variables. The browser only ever talks to `/api/quote`, and the Content Security Policy restricts `connect-src` to the same origin.
+- `/api/quote` requires a same-origin `Origin` header and a JSON body under 4 KB, validates it with Zod (20 to 1,000 characters, a known market), then applies two caps: 3 quotes per hour per IP and 40 per day in total. The limiter is in memory per instance, a deliberate choice explained in [`lib/ratelimit.ts`](lib/ratelimit.ts).
+- Every external call is bounded: output tokens, timeouts, number of tool calls and total research time.
+- Security headers on every route: CSP, HSTS, `X-Frame-Options: DENY`, `nosniff`, a strict `Referrer-Policy` and `Permissions-Policy`.
+
+## Run it locally
+
+Requires Node 20 or later, a [Nebius Token Factory](https://tokenfactory.nebius.com) API key and a [Tavily](https://app.tavily.com) API key.
 
 ```bash
 npm install
-cp .env.example .env.local
-# edit .env.local and set NEBIUS_API_KEY to a real Token Factory key
-npm run dev
+cp .env.example .env.local   # then set NEBIUS_API_KEY and TAVILY_API_KEY
+npm run dev                  # http://localhost:3000
 ```
 
-Open `http://localhost:3000`, describe a business need, pick a market, and
-generate a draft quote.
-
-## Deploy
-
-The project is a standard Next.js app and deploys as-is to Vercel's free
-tier (or any Node 20+ host). Set `NEBIUS_API_KEY` (and optionally
-`NEBIUS_MODEL`) as environment variables on the platform, never in the repo.
+Checks:
 
 ```bash
-npx vercel deploy --prod
+npm run typecheck
+npm run lint
+npm test                     # agent loop, tool budgets, citation and pricing rules, language detection
+npm run build
+```
+
+One real generation from the command line, printing the trace as it streams (costs one quote):
+
+```bash
+npx tsx scripts/smoke.mts france "We run two dental clinics and no-shows are costing us chair time..."
 ```
 
 ## Project structure
 
 ```
 app/
-  page.tsx          Landing page, server component
-  QuoteForm.tsx      Client component, form + result rendering
-  api/quote/route.ts  Server route calling Nebius Token Factory
+  page.tsx              Landing page and "how it works"
+  QuoteWorkbench.tsx    Form, examples, market picker, stream reader
+  AgentTrace.tsx        Live trace of the agent's steps
+  QuoteDocument.tsx     The quote, Markdown export, print
+  QuoteSkeleton.tsx     Loading state shaped like the quote
+  api/quote/route.ts    Guards, then streams the agent's events
+  opengraph-image.tsx   Social card
 lib/
-  nebius.ts          Token Factory client and prompt
-  quoteSchema.ts      Zod schemas for request and response
-  ratelimit.ts        In-memory fixed-window rate limiter
+  agent.ts              Research loop, drafting, repair, checks
+  nebius.ts             Token Factory client, Zod-validated responses
+  tavily.ts             Tavily Search and Extract clients
+  pricing.ts            Citation filtering and deterministic pricing
+  markets.ts            Currencies, locales, guard bands
+  quoteSchema.ts        Zod schemas and shared types
+  language.ts           Picks the quote language from the request
+  markdown.ts           Markdown export
+  ratelimit.ts          Per-IP and daily caps
+tests/                  node:test suites, run with tsx
+scripts/smoke.mts       One real end-to-end generation
 ```
 
-## Feedback on Nebius Token Factory and NVIDIA Nemotron
+## Screenshots
 
-The OpenAI-compatible endpoint made swapping in an NVIDIA Nemotron model a
-one-line change from a generic Nebius demo, which is the right default for
-anyone coming from existing OpenAI SDK code. The main friction during the
-hackathon was account onboarding, the contact details step sits behind a
-Cloudflare Turnstile check that would not clear in an automated browser
-session, which meant the final signup click had to be done by hand rather
-than scripted end to end.
+All taken on the production deployment on 30 October 2026, with a real generation.
+
+| Landing, desktop | Landing, mobile | Trace, mobile |
+| --- | --- | --- |
+| ![Landing page at 1440 px](docs/screenshots/desktop-home.png) | ![Landing page at 390 px](docs/screenshots/mobile-home.png) | ![Agent trace at 390 px](docs/screenshots/mobile-trace.png) |
+
+The complete quote, top to bottom: [docs/screenshots/desktop-quote-full.png](docs/screenshots/desktop-quote-full.png).
 
 ## License
 
-MIT, see `LICENSE`.
+[MIT](LICENSE)
