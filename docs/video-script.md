@@ -83,7 +83,7 @@ Narration:
 Screen: scroll back to the form. Hover the four market options in turn: France EUR, Senegal XOF, Switzerland CHF, United States USD. Then hover the two French example chips. Do not click "Draft the quote".
 
 Narration:
-"We built it for agencies like ours, across France, Senegal and Switzerland, where rates, currencies and rules all differ. Four currencies, English or French, about fifteen seconds, and every price traceable to its sources."
+"We built it for agencies like ours, across France, Senegal and Switzerland, where rates and rules differ. A first quote takes us up to an hour by hand. Here, a sourced draft in about fifteen seconds."
 
 ## Shot 9, 2:36 to 2:45, close
 

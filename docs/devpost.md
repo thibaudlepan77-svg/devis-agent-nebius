@@ -86,7 +86,7 @@ The result, in about 15 to 20 seconds, is a quote draft with modules and hour ra
 
 Who it is for: small web and automation agencies and freelancers who answer inbound requests every week, in markets where rates and rules differ, which is our own situation across France, Senegal and Switzerland.
 
-What the demo shows, measured on the production deployment on 30 October 2026: a complete, sourced quote draft in about 15 seconds, with 5 Nemotron calls, 3 Tavily searches, 1 page extract and about 11,000 tokens. That is the research and first-pass structuring that a consultant otherwise does by hand before a first reply. We have not run a timed study of the manual process, so we make no claim about the exact time saved. The draft still goes through a human, by design.
+What the demo shows, measured on the production deployment on 30 October 2026: a complete, sourced quote draft in about 15 seconds, with 5 Nemotron calls, 3 Tavily searches, 1 page extract and about 11,000 tokens. That is the research and first-pass structuring that a consultant otherwise does by hand before a first reply. At our own agency, a first quote done by hand, from the client's message to the quote sent, rates and tooling research included, takes up to an hour. Devis Agent turns the research and first-pass structuring into seconds and leaves the review to a person, by design.
 
 ## Feedback on Nebius Token Factory and NVIDIA Nemotron
 
