@@ -5,6 +5,7 @@
 Built for the Nebius x NVIDIA Global AI Hackathon, Best Apps and Agents track.
 
 - Live demo: **https://devis-agent-nebius.vercel.app** (no sign-up, three one-click examples)
+- Mirror, if the main demo is unavailable: **https://devis-agent.46-225-12-137.sslip.io**
 - Demo video (2:39): **https://youtu.be/r_WPmofMZ6c**
 - License: MIT
 - Built from scratch for this hackathon, during the submission period: the repository and its first commit date from 30 October 2026.
