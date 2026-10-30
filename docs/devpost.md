@@ -1,6 +1,9 @@
 # Devpost submission content
 
-Track: Best Apps and Agents
+Track: Best Apps and Agents. Also eligible for Best Use of Tavily and Most Valuable Feedback.
+
+- Demo: https://devis-agent-nebius.vercel.app
+- Code: https://github.com/thibaudlepan77-svg/devis-agent-nebius (MIT)
 
 ## Title
 
@@ -8,119 +11,99 @@ Devis Agent
 
 ## Tagline
 
-Turn a one-line automation request into a structured client quote, drafted by an NVIDIA Nemotron model on Nebius Token Factory.
+From a one-line client request to a sourced, priced quote: Nemotron researches the market through Tavily, the code does the arithmetic.
 
 ## Inspiration
 
-This comes straight out of running a small web and automation agency. A
-prospect describes a problem in a sentence, "we retype every WhatsApp quote
-request into a spreadsheet by hand", and turning that into a first-pass
-quote, modules, hours, price range, is a slow, repetitive step that still
-has to happen before any real conversation starts. Nemotron on Token Factory
-looked like the right fit, a reasoning model that is good at turning a messy
-business description into a consistent, structured breakdown, served
-through an endpoint that drops into an existing OpenAI-style client with one
-line changed.
+This comes out of running a small web and automation agency. A prospect writes one sentence, "patients book by phone and no-shows are costing us chair time", and before anyone can answer with a number, someone has to break the need into modules, estimate hours, check what developers charge in that country this year, find which API the build would sit on, and remember which data protection rules apply. The research is the slow part. A plain chatbot skips it and invents a rate and a total, which is worse than no answer, because it looks finished.
+
+We wanted the opposite: an agent that looks things up before it prices anything, shows its work while it does it, cites what it found, and is never trusted with the arithmetic.
 
 ## What it does
 
-A visitor describes a business need in a sentence or two, in French or
-English, and picks a market (Senegal, France, Switzerland) for the right
-currency. The app sends that description to an NVIDIA Nemotron model on
-Nebius Token Factory and gets back a structured quote draft, two to five
-modules with a one-line description and an honest hour estimate each, a
-setup price range, a monthly subscription, up to three clarifying questions
-a human consultant would still want answered, and a suggested next step. The
-output is validated against a strict schema before it ever reaches the
-browser, so a malformed generation fails loudly instead of rendering
-garbage. The app is explicit that this is a draft for a human to review, not
-something that gets sent to a client unedited.
+A visitor describes a client's need in English or French, or clicks one of three examples, and picks the client's market: France (EUR), Senegal (XOF), Switzerland (CHF) or the United States (USD).
+
+The agent then works in the open. A live trace shows each step as it happens:
+
+1. **Nemotron plans the research** and its short reasoning is shown.
+2. **Tavily searches the live web**, one topic at a time: developer rates in that country this year, the products or APIs the build would rely on and their pricing, the regulation that applies to the data involved (HIPAA for a US dental clinic, GDPR and the CNIL for a French one).
+3. **Nemotron picks the most useful source** and **Tavily Extract reads it**, returning the passages that answer the model's question rather than a snippet.
+4. **Nemotron writes the quote** as strict structured output.
+5. **The code checks it**: schema validation, and every citation matched against a source the agent actually retrieved.
+6. **The code prices it**: hours times rate, inside a per-market guard band, rounded per currency.
+
+The result, in about 15 to 20 seconds, is a quote draft with modules and hour ranges, a one-time setup range, monthly support, the hourly rate with its rationale, tools and integrations, compliance points, assumptions, questions to ask the client, and numbered sources, the one read in full marked as such. It is written in the language of the request and can be copied as Markdown, downloaded, or printed to a clean PDF. It is labelled as a draft for a consultant to review, because that is what it is.
 
 ## How we built it
 
-- Next.js 15 (App Router), TypeScript strict, no `any`.
-- `lib/nebius.ts` talks to Nebius Token Factory's OpenAI-compatible endpoint
-  (`https://api.tokenfactory.us-central1.nebius.com/v1/`) using the `openai`
-  SDK, calling `nvidia/nemotron-3-super-120b-a12b`.
-- `lib/quoteSchema.ts` defines Zod schemas for both the inbound request and
-  the model's structured JSON output, so the model's response is validated,
-  not trusted.
-- `app/api/quote/route.ts` is the only server route, it rate-limits, parses,
-  calls the model, validates, and returns.
-- Because this demo runs on a real paid API key, the endpoint is locked
-  down, a 3-requests-per-hour cap per visitor, a 40-requests-per-day global
-  cap shared across all visitors, input capped at 1000 characters (already
-  the UI's limit), and model output capped at 1200 tokens. Both caps return
-  a clear message once hit instead of a generic failure.
-- Deployed on Vercel's free tier, no custom infrastructure.
+- **Nebius Token Factory and NVIDIA Nemotron.** `nvidia/nemotron-3-super-120b-a12b` through the OpenAI-compatible `chat/completions` endpoint, called with plain `fetch`, every response validated with Zod. The agent loop uses Nemotron's native tool calling with two tools, `web_search` and `read_page`. Each call sets `chat_template_kwargs: { enable_thinking: true, low_effort: true }`, so Nemotron keeps a short thought that the trace can show, without a full reasoning pass on every turn. The draft uses `response_format` with a strict JSON schema generated from the same Zod schema that validates it afterwards, with one automatic repair round if validation fails.
+- **Tavily.** Search runs with the `country` parameter set from the chosen market. Extract runs with `query` and `chunks_per_source`, so only the relevant passages of the chosen page reach the model. `read_page` only accepts a URL that a search returned, and only unlocks after two searches. Results are treated as untrusted data in the prompt, and citations are verified in code.
+- **Deterministic pricing.** The model proposes hour ranges and a rate band, nothing else. `lib/pricing.ts` drops citations to unknown sources, clamps the rate into a wide per-market band, multiplies, and rounds per currency. No line amount or total comes from the model.
+- **Bounded agent.** At most 3 searches, 1 page read, 4 planning rounds, 25 seconds of research, 500 output tokens per research turn, 2,200 for the draft, 30 second timeouts on model calls, 8 and 10 seconds on Tavily. A failed search or extract becomes a failed step in the trace and the agent carries on.
+- **Product.** Next.js 15 App Router, TypeScript strict, the route streams NDJSON events that the client renders as a live trace next to a skeleton shaped like the quote. Responsive down to 390 px, keyboard and screen reader friendly (live region for trace progress, labelled controls, skip link), print stylesheet, Open Graph card.
+- **Cost and abuse controls.** Same-origin check, 4 KB body limit, Zod input validation, 3 quotes per hour per IP and 40 per day in total, CSP and security headers, keys server side only.
+- **Tests.** `node:test` suites cover the tool budgets, a failed search, a refused extract URL, a failed extract, citation filtering, the rate guard band, the repair round and language detection. A smoke script runs one real end-to-end generation from the command line.
 
 ## Challenges we ran into
 
-- The hackathon's promo activation code (`NEBIUS-DEVPOST-GLOBAL26`) returned
-  `error-no-event` on the Token Factory account used for this project, so
-  the free hackathon credit never landed. The account onboarding step
-  (Contact details, right after Google sign-in) also sits behind a
-  Cloudflare Turnstile check that would not clear for a scripted browser
-  session, that one click had to be done by a human.
-- Getting a model to return clean, schema-matching JSON every time needed a
-  tight system prompt and a hard validation step, rather than trusting the
-  output and hoping.
-- Protecting a demo that calls a real paid key from being drained by
-  traffic, without adding a paid shared store (Redis, Edge Config with a
-  write-scoped token) just to hold a handful of counters. The in-memory,
-  per-instance limiter and its known limits are documented directly in
-  `lib/ratelimit.ts`.
+- **One tool call per turn.** We asked Nemotron for parallel searches in its first turn. In every real run it issued one call per turn, reasoning about what was still missing before the next. We rebuilt the loop around rounds, which also made the trace more readable: you can watch it decide.
+- **Language drift.** An English request for a French clinic came back in French: the model followed the client's country rather than the request. Language is now detected in code and imposed in the prompt and on the output.
+- **Thin research.** Our first real run did a single search, went straight to reading a page, and concluded that patient reminders needed no compliance section. Unlocking `read_page` only after two searches, and stating plainly that patient records and phone numbers are personal data, fixed both: the next runs searched rates, the messaging API and the regulation, and cited the CNIL and HIPAA sources.
+- **Account setup.** The hackathon promo code `NEBIUS-DEVPOST-GLOBAL26` returned `error-no-event` on our Token Factory account, and the onboarding step after Google sign-in sits behind a Cloudflare Turnstile check that an automated browser could not clear (details in the feedback section).
 
 ## Accomplishments that we're proud of
 
-A small, finished tool that does one real job well, instead of a bigger
-demo that half-works. The output is schema-validated end to end, the public
-demo is cost-protected rather than left wide open, and the whole thing ships
-with a clean TypeScript build and no warnings.
+- A real agent, not a prompt: the model decides what to search, what to read, and when it has enough, and every decision is visible.
+- Numbers you can audit. Each amount traces back to hours and a rate, each rate to a cited source, and each citation to a page the agent actually retrieved.
+- A finished product rather than a notebook: four markets and currencies, two languages, export, print, mobile, loading states, accessibility, and a public demo that is protected against draining a paid key.
 
 ## What we learned
 
-Token Factory's OpenAI-compatible API made swapping an NVIDIA open source
-model into existing code a genuinely small change. The rough edges were all
-on the account side, promo code activation and an onboarding bot check,
-not on the inference API itself.
+- Pairing a reasoning model with a search tool is not enough on its own. The quality came from the guard rails around it: tool budgets, an order of operations enforced in code, citations checked against what was really retrieved, and arithmetic taken away from the model.
+- Tavily Extract with a `query` is the difference between "the model saw a snippet" and "the model read the rate table".
+- Showing the model's short reasoning in the UI does more for trust than any disclaimer.
 
 ## What's next
 
-Let a consultant edit the draft inline before it goes out, keep a short
-history of past quotes for a given visitor, and add a second Nemotron pass
-that cross-checks hour estimates against the agency's own historical
-delivery times.
+- Calibrate hour estimates against the agency's own delivery history, so each module range reflects real past projects.
+- Let the consultant edit the draft inline and keep a version history before anything is sent.
+- More markets and languages, starting with other West African francophone countries, where the XOF pricing already applies.
 
 ## Built With
 
 - Nebius Token Factory
-- NVIDIA Nemotron (`nvidia/nemotron-3-super-120b-a12b`)
-- Next.js
+- NVIDIA Nemotron 3 Super (`nvidia/nemotron-3-super-120b-a12b`)
+- Tavily Search API and Tavily Extract API
+- Next.js 15
 - TypeScript
 - Zod
 - Vercel
 
+## Impact
+
+Who it is for: small web and automation agencies and freelancers who answer inbound requests every week, in markets where rates and rules differ, which is our own situation across France, Senegal and Switzerland.
+
+What the demo shows, measured on the production deployment on 30 October 2026: a complete, sourced quote draft in about 15 seconds, with 5 Nemotron calls, 3 Tavily searches, 1 page extract and about 11,000 tokens. That is the research and first-pass structuring that a consultant otherwise does by hand before a first reply. We have not run a timed study of the manual process, so we make no claim about the exact time saved. The draft still goes through a human, by design.
+
 ## Feedback on Nebius Token Factory and NVIDIA Nemotron
 
-**What worked.** The OpenAI-compatible endpoint is the right default, it
-took one base URL and one model string to go from a generic example to
-`nvidia/nemotron-3-super-120b-a12b`. The model catalog's per-model pricing
-and throughput numbers made it easy to pick Nemotron 3 Super over the
-smaller Nano variant for this use case without guessing.
+**What worked well**
 
-**What's missing or rough.**
-- The hackathon's own promo credit code, `NEBIUS-DEVPOST-GLOBAL26`, failed
-  with `error-no-event` on this account during the submission window, so
-  the advertised free hackathon credit could not be redeemed, and a small
-  real charge went on a personal card instead to finish the project in
-  time.
-- The "Contact details" step right after Google sign-in sits behind a
-  Cloudflare Turnstile check that never cleared for a real but automated
-  browser session, even after extended waits and natural mouse movement.
-  That one click needed a human at the keyboard, which is a rough edge for
-  anyone trying to script account setup as part of a CI pipeline or an
-  agent-driven workflow, exactly the kind of workflow this hackathon's
-  Coding and Agentic Engineering track is encouraging people to build.
-- Nothing to report on model quality itself, Nemotron 3 Super produced
-  schema-matching JSON on every test run.
+- The OpenAI-compatible endpoint meant no SDK at all: one base URL, one model id, and `fetch`. Tool calling, `response_format` with a strict JSON schema, and `chat_template_kwargs` all went through the same request shape.
+- Nemotron 3 Super's tool calling was reliable in our runs: valid arguments every time, sensible queries with the right year and country, and it chose the page with the rate table when asked to pick a source.
+- Strict structured output validated against our Zod schema on the first attempt in every real run; the repair round has not been needed yet in production.
+- `low_effort` thinking is a great fit for agents: a one or two sentence plan before each tool call, short enough to show to end users, and calls that come back in about a second during research.
+
+**What was rough**
+
+- The hackathon promo code `NEBIUS-DEVPOST-GLOBAL26` failed with `error-no-event` on our Token Factory account during the submission window, so the advertised hackathon credit could not be redeemed and the project runs on regular paid credit.
+- The "Contact details" step right after Google sign-in sits behind a Cloudflare Turnstile check that did not clear for an automated browser session. A human had to click through. For a platform that targets agent builders, scripted onboarding is worth supporting, or at least documenting.
+- Parallel tool calls: despite explicit instructions, Nemotron always issued one tool call per turn. That may be intended, but a sentence in the model card or the Token Factory docs about parallel tool call support would save builders a redesign.
+- In one run the model followed the client's country instead of the language of the request when choosing the output language. Worth knowing for anyone building multilingual apps.
+- The `chat_template_kwargs` options for Nemotron 3 Super (`enable_thinking`, `low_effort`) are powerful but easy to miss. A short "agent recipe" in the Token Factory docs showing them together with tools and `response_format` would help.
+
+## Feedback on Tavily
+
+- **Search with `country`** keeps the evidence local. With it set from the market, our French runs cited French sources (weepo.fr, lehibou.com, cnil.fr) and the US run cited US pricing guides and HIPAA sources.
+- **Extract with `query` and `chunks_per_source`** is the feature that made the agent credible. The model asks for "freelance developer hourly rate" and receives the passages with the actual rates, small enough to fit in a tight prompt budget. Extract answered in well under a second in our runs.
+- **Rough edge.** The top chunk can still start with page navigation text ("Case Studies Pricing About Sign In") before the relevant content. Easy to live with, but a cleaner first chunk would save prompt tokens.
