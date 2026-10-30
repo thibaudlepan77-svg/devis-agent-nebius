@@ -11,7 +11,7 @@ const DOC_LABELS = {
     monthlyHint: (hours: number) => `${hours} h of support a month`,
     effort: "Estimated effort",
     effortHint: "one experienced developer",
-    basis: "Every amount is computed in code from the hours and the hourly rate, never written by the model.",
+    basis: "Every line amount and total is computed in code from the hours and the hourly rate, never written by the model.",
     clamped: "The proposed rate was outside the market guard band and was brought back inside it.",
   },
   fr: {
@@ -19,7 +19,7 @@ const DOC_LABELS = {
     monthlyHint: (hours: number) => `${hours} h de support par mois`,
     effort: "Charge estimée",
     effortHint: "un développeur expérimenté",
-    basis: "Chaque montant est calculé par le code à partir des heures et du taux horaire, jamais écrit par le modèle.",
+    basis: "Chaque montant de ligne et chaque total sont calculés par le code à partir des heures et du taux horaire, jamais écrits par le modèle.",
     clamped: "Le taux proposé sortait de la fourchette de garde du marché et y a été ramené.",
   },
 } as const;

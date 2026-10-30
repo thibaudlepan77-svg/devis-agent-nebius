@@ -1,5 +1,6 @@
 import { MARKETS, type MarketId } from "./markets";
 import type { PricedQuote, QuoteDraft, Source } from "./quoteSchema";
+import { liftInlineCitations } from "./text";
 
 function roundTo(value: number, step: number): number {
   return Math.round(value / step) * step;
@@ -32,6 +33,11 @@ export function priceDraft(
     droppedCitations += new Set(ids).size - kept.length;
     return kept;
   };
+  const clean = (value: string) => liftInlineCitations(value).text;
+  const citedText = (value: string, ids: number[]) => {
+    const lifted = liftInlineCitations(value);
+    return { text: lifted.text, ids: [...ids, ...lifted.ids] };
+  };
 
   const proposedLow = Math.min(draft.rate.low, draft.rate.high);
   const proposedHigh = Math.max(draft.rate.low, draft.rate.high);
@@ -42,16 +48,19 @@ export function priceDraft(
   const lines = draft.modules.map((module) => {
     const hoursLow = Math.round(Math.min(module.hoursLow, module.hoursHigh));
     const hoursHigh = Math.round(Math.max(module.hoursLow, module.hoursHigh));
+    const name = citedText(module.name, module.sources);
+    const description = citedText(module.description, name.ids);
     return {
-      name: module.name,
-      description: module.description,
+      name: name.text,
+      description: description.text,
       hoursLow,
       hoursHigh,
       amountLow: hoursLow * rateLow,
       amountHigh: hoursHigh * rateHigh,
-      sources: cite(module.sources),
+      sources: cite(description.ids),
     };
   });
+  const rationale = citedText(draft.rate.rationale, draft.rate.sources);
 
   const hoursLow = lines.reduce((sum, line) => sum + line.hoursLow, 0);
   const hoursHigh = lines.reduce((sum, line) => sum + line.hoursHigh, 0);
@@ -60,14 +69,14 @@ export function priceDraft(
   const quote: PricedQuote = {
     market: marketId,
     language: draft.language,
-    title: draft.title,
-    summary: draft.summary,
+    title: clean(draft.title),
+    summary: clean(draft.summary),
     lines,
     rate: {
       low: rateLow,
       high: rateHigh,
-      rationale: draft.rate.rationale,
-      sources: cite(draft.rate.sources),
+      rationale: rationale.text,
+      sources: cite(rationale.ids),
       clamped,
     },
     totals: {
@@ -78,11 +87,18 @@ export function priceDraft(
       monthly: roundTo((monthlySupportHours * (rateLow + rateHigh)) / 2, market.monthlyStep),
       monthlySupportHours,
     },
-    tools: draft.tools.map((tool) => ({ ...tool, sources: cite(tool.sources) })),
-    compliance: draft.compliance.map((item) => ({ ...item, sources: cite(item.sources) })),
-    assumptions: draft.assumptions,
-    questions: draft.questions,
-    nextStep: draft.nextStep,
+    tools: draft.tools.map((tool) => {
+      const name = citedText(tool.name, tool.sources);
+      const role = citedText(tool.role, name.ids);
+      return { name: name.text, role: role.text, sources: cite(role.ids) };
+    }),
+    compliance: draft.compliance.map((item) => {
+      const note = citedText(item.note, item.sources);
+      return { note: note.text, sources: cite(note.ids) };
+    }),
+    assumptions: draft.assumptions.map(clean),
+    questions: draft.questions.map(clean),
+    nextStep: clean(draft.nextStep),
     sources,
     grounded: sources.length > 0,
     generatedAt: generatedAt.toISOString(),

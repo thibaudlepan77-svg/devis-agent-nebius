@@ -18,7 +18,7 @@ const STEPS = [
   },
   {
     title: "Code does the arithmetic",
-    body: "Hours times rate, rounded per market, inside a guard band. The model never writes an amount, so every figure on the quote can be traced.",
+    body: "Hours times rate, rounded per market, inside a guard band. The model never writes a line amount or a total, so every price on the quote can be traced.",
   },
 ];
 
